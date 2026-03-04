@@ -10,7 +10,10 @@
     "db:migrate": "npx @better-auth/cli migrate --config ./src/lib/auth.ts -y"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@libsql/client": "^0.17.0",
     "@libsql/kysely-libsql": "^0.4.1",
+    "@radix-ui/react-scroll-area": "^1.2.10",
     "better-auth": "^1.5.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

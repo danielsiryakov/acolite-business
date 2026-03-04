@@ -4,14 +4,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Chat } from "@/components/chat";
 
 export default function DashboardPage() {
   const { data: session, isPending } = useSession();
@@ -50,6 +44,7 @@ export default function DashboardPage() {
                 {session.user.name?.[0]?.toUpperCase() || "U"}
               </AvatarFallback>
             </Avatar>
+            <span className="text-sm text-gray-600">{session.user.name}</span>
             <Button variant="ghost" onClick={handleSignOut}>
               Sign Out
             </Button>
@@ -58,42 +53,49 @@ export default function DashboardPage() {
       </nav>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-gray-600 mt-1">
+            Welcome back, {session.user.name?.split(" ")[0] || "User"}! Chat
+            with your personal NanoClaw assistant below.
+          </p>
+        </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardTitle>AI Agents</CardTitle>
-              <CardDescription>Build and deploy AI agents</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full">Create Agent</Button>
-            </CardContent>
-          </Card>
+        {/* Chat Interface */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <Chat />
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Workflows</CardTitle>
-              <CardDescription>Automate your business processes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" variant="outline">
-                View Workflows
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="space-y-4">
+            <div className="bg-white rounded-lg border p-4">
+              <h3 className="font-medium mb-2">About Your Assistant</h3>
+              <p className="text-sm text-gray-600">
+                NanoClaw is your personal AI assistant. Each user gets their own
+                dedicated assistant that remembers your conversation history.
+              </p>
+            </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Analytics</CardTitle>
-              <CardDescription>Track your business metrics</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" variant="outline">
-                View Analytics
-              </Button>
-            </CardContent>
-          </Card>
+            <div className="bg-white rounded-lg border p-4">
+              <h3 className="font-medium mb-2">What can NanoClaw help with?</h3>
+              <ul className="text-sm text-gray-600 space-y-1">
+                <li>- Business questions and advice</li>
+                <li>- Task planning and organization</li>
+                <li>- Writing and communication</li>
+                <li>- Data analysis and insights</li>
+                <li>- General productivity assistance</li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-lg border p-4">
+              <h3 className="font-medium mb-2">Tips</h3>
+              <ul className="text-sm text-gray-600 space-y-1">
+                <li>- Be specific with your questions</li>
+                <li>- Provide context when needed</li>
+                <li>- Use Clear to start a fresh conversation</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </main>
     </div>
