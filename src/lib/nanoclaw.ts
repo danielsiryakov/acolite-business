@@ -198,9 +198,10 @@ export class NanoClawService {
       let buffer = "";
       const START_MARKER = "---NANOCLAW_OUTPUT_START---";
       const END_MARKER = "---NANOCLAW_OUTPUT_END---";
+      let gotResult = false;
 
-      // Process stdout
-      for await (const chunk of proc.stdout) {
+      // Set up stdout data handler
+      const processChunk = (chunk: Buffer): boolean => {
         buffer += chunk.toString();
 
         // Look for output markers
@@ -229,46 +230,64 @@ export class NanoClawService {
 
               if (text) {
                 fullOutput = text;
-                yield { type: "text", content: text };
+                return true; // Got a result with content
               }
             }
 
             if (output.newSessionId) {
-              await upsertSession(userId, output.newSessionId);
+              upsertSession(userId, output.newSessionId);
             }
 
             if (output.status === "error" && output.error) {
               fullOutput = `Error: ${output.error}`;
-              yield { type: "text", content: fullOutput };
+              return true; // Got an error result
             }
           } catch {
             // Parse error, skip
           }
         }
-      }
+        return false;
+      };
 
-      // Wait for process to complete
-      await new Promise<void>((resolve) => {
-        proc.on("close", () => resolve());
+      // Process output with timeout
+      const resultPromise = new Promise<string>((resolve) => {
+        const timeout = setTimeout(() => {
+          proc.kill("SIGTERM");
+          resolve(fullOutput || "Request timed out");
+        }, CONTAINER_TIMEOUT);
+
+        proc.stdout.on("data", (chunk: Buffer) => {
+          if (processChunk(chunk) && !gotResult) {
+            gotResult = true;
+            clearTimeout(timeout);
+            // Kill the container after getting the result
+            // (it would otherwise wait for IPC messages)
+            setTimeout(() => {
+              proc.kill("SIGTERM");
+            }, 100);
+            resolve(fullOutput);
+          }
+        });
+
+        proc.stderr.on("data", (data: Buffer) => {
+          // Log stderr but don't fail
+          console.error("[nanoclaw stderr]", data.toString());
+        });
+
+        proc.on("close", () => {
+          clearTimeout(timeout);
+          resolve(fullOutput || "No response from agent");
+        });
       });
 
-      // If no output was captured, check stderr
-      if (!fullOutput) {
-        let stderr = "";
-        for await (const chunk of proc.stderr) {
-          stderr += chunk.toString();
-        }
-        if (stderr) {
-          fullOutput = `Container error. Please check logs.`;
-          yield { type: "text", content: fullOutput };
-        }
-      }
+      const result = await resultPromise;
 
       // Save the response
-      if (fullOutput) {
-        await addMessage(userId, "assistant", fullOutput);
+      if (result) {
+        await addMessage(userId, "assistant", result);
       }
 
+      yield { type: "text", content: result };
       yield { type: "done" };
     }
 
