@@ -20,12 +20,18 @@ ANTHROPIC_API_KEY=$(echo "$INPUT" | node -e "
   process.stdout.write((input.secrets && input.secrets.ANTHROPIC_API_KEY) || '');
 ")
 
+STRIPE_API_KEY=$(echo "$INPUT" | node -e "
+  const input = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+  process.stdout.write((input.secrets && input.secrets.STRIPE_API_KEY) || '');
+")
+
 VERCEL_TOKEN=$(echo "$INPUT" | node -e "
   const input = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
   process.stdout.write((input.secrets && input.secrets.VERCEL_TOKEN) || '');
 ")
 
 export ANTHROPIC_API_KEY
+export STRIPE_API_KEY
 export VERCEL_TOKEN
 
 # Ensure Claude Code config file exists (it expects ~/.claude.json)
@@ -47,51 +53,59 @@ if [ -n "$SESSION_ID" ]; then
 fi
 
 # Run Claude Code and capture output
-RESULT=""
-ERROR=""
-NEW_SESSION_ID=""
-STATUS="success"
+CLAUDE_OUTPUT=$(echo "$PROMPT" | claude "${CLAUDE_ARGS[@]}" 2>/tmp/claude_stderr) || true
+STDERR_CONTENT=$(cat /tmp/claude_stderr 2>/dev/null || echo "")
 
-CLAUDE_OUTPUT=$(echo "$PROMPT" | claude "${CLAUDE_ARGS[@]}" 2>/tmp/claude_stderr) || {
+# Parse the output - check for errors in JSON response
+PARSED=$(echo "$CLAUDE_OUTPUT" | node -e "
+  const lines = require('fs').readFileSync('/dev/stdin','utf8').trim().split('\n');
+  let result = '';
+  let sessionId = '';
+  let isError = false;
+  let errorMsg = '';
+
+  for (const line of lines) {
+    try {
+      const obj = JSON.parse(line);
+      if (obj.type === 'result') {
+        result = obj.result || '';
+        sessionId = obj.session_id || '';
+        isError = obj.is_error === true;
+      }
+    } catch {}
+  }
+
+  // If is_error is true, the result contains the error message
+  if (isError) {
+    errorMsg = result;
+    result = '';
+  }
+
+  console.log(JSON.stringify({ result, sessionId, isError, errorMsg }));
+")
+
+RESULT=$(echo "$PARSED" | node -e "console.log(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).result)")
+NEW_SESSION_ID=$(echo "$PARSED" | node -e "console.log(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).sessionId)")
+IS_ERROR=$(echo "$PARSED" | node -e "console.log(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).isError)")
+ERROR_MSG=$(echo "$PARSED" | node -e "console.log(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).errorMsg)")
+
+# Determine status
+if [ "$IS_ERROR" = "true" ]; then
   STATUS="error"
-  ERROR=$(cat /tmp/claude_stderr 2>/dev/null || echo "Claude exited with error")
-}
-
-if [ "$STATUS" = "success" ]; then
-  # Extract the result text and session ID from JSON output
-  RESULT=$(echo "$CLAUDE_OUTPUT" | node -e "
-    const lines = require('fs').readFileSync('/dev/stdin','utf8').trim().split('\n');
-    let result = '';
-    let sessionId = '';
-    for (const line of lines) {
-      try {
-        const obj = JSON.parse(line);
-        if (obj.type === 'result' && obj.result) {
-          result = obj.result;
-        }
-        if (obj.session_id) {
-          sessionId = obj.session_id;
-        }
-      } catch {}
-    }
-    process.stdout.write(JSON.stringify({ result, sessionId }));
-  ")
-
-  NEW_SESSION_ID=$(echo "$RESULT" | node -e "
-    const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
-    process.stdout.write(d.sessionId || '');
-  ")
-
-  RESULT=$(echo "$RESULT" | node -e "
-    const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
-    process.stdout.write(d.result || '');
-  ")
+  ERROR="$ERROR_MSG"
+  RESULT=""
+elif [ -n "$STDERR_CONTENT" ] && [ -z "$RESULT" ]; then
+  STATUS="error"
+  ERROR="$STDERR_CONTENT"
+else
+  STATUS="success"
+  ERROR=""
 fi
 
 # Build output JSON
 OUTPUT=$(node -e "
   const output = {
-    status: '$STATUS',
+    status: $(node -e "process.stdout.write(JSON.stringify(process.argv[1]))" -- "$STATUS"),
     result: $(node -e "process.stdout.write(JSON.stringify(process.argv[1]))" -- "$RESULT"),
     error: $(node -e "process.stdout.write(JSON.stringify(process.argv[1]))" -- "$ERROR"),
     newSessionId: $(node -e "process.stdout.write(JSON.stringify(process.argv[1]))" -- "$NEW_SESSION_ID")

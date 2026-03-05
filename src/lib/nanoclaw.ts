@@ -211,6 +211,7 @@ async function startContainer(userId: string, initialPrompt: string): Promise<Co
     secrets: {
       ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || "",
       HUNTER_API_KEY: process.env.HUNTER_API_KEY || "",
+      STRIPE_API_KEY: process.env.STRIPE_API_KEY || "",
       VERCEL_TOKEN: process.env.VERCEL_TOKEN || "",
     },
   };
