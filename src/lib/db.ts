@@ -3,7 +3,7 @@ import path from "path";
 
 const dbPath = `file:${path.join(process.cwd(), "prisma", "dev.db")}`;
 
-const client = createClient({
+export const client = createClient({
   url: dbPath,
 });
 

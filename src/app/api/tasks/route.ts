@@ -1,56 +1,73 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { getUserTasks, cancelTask } from "@/lib/task-scheduler";
+import { listTasks, createTask, type TaskStatus, type TaskPriority } from "@/lib/task-queue";
 
-// Get scheduled tasks for the user
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const params = request.nextUrl.searchParams;
+    const status = params.get("status") as TaskStatus | null;
+    const priority = params.get("priority") as TaskPriority | null;
+    const parentTaskId = params.get("parent_task_id");
+    const includeCompleted = params.get("include_completed") === "true";
+    const limit = parseInt(params.get("limit") || "50", 10);
+    const offset = parseInt(params.get("offset") || "0", 10);
+
+    const tasks = await listTasks(session.user.id, {
+      status: status || undefined,
+      priority: priority || undefined,
+      parentTaskId: parentTaskId === "root" ? null : parentTaskId || undefined,
+      includeCompleted,
+      limit,
+      offset,
     });
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const tasks = getUserTasks(session.user.id);
 
     return NextResponse.json({ tasks });
   } catch (error) {
     console.error("GET /api/tasks error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-// Cancel a task
-export async function DELETE(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = await request.json();
+    if (!body.title) return NextResponse.json({ error: "title is required" }, { status: 400 });
+
+    let nextRun: Date | undefined;
+    if (body.schedule_type && body.schedule_value) {
+      if (body.schedule_type === "once") {
+        nextRun = new Date(body.schedule_value);
+      } else if (body.schedule_type === "interval") {
+        nextRun = new Date(Date.now() + parseInt(body.schedule_value, 10));
+      } else {
+        nextRun = new Date(Date.now() + 60000);
+      }
+    }
+
+    const task = await createTask({
+      user_id: session.user.id,
+      title: body.title,
+      prompt: body.prompt,
+      description: body.description,
+      priority: body.priority || "normal",
+      created_by: "human",
+      parent_task_id: body.parent_task_id,
+      schedule_type: body.schedule_type,
+      schedule_value: body.schedule_value,
+      next_run: nextRun,
+      status: body.prompt ? "queued" : "todo",
     });
 
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { taskId } = await request.json();
-
-    if (!taskId) {
-      return NextResponse.json({ error: "taskId required" }, { status: 400 });
-    }
-
-    const success = cancelTask(taskId);
-
-    return NextResponse.json({ success });
+    return NextResponse.json({ task }, { status: 201 });
   } catch (error) {
-    console.error("DELETE /api/tasks error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    console.error("POST /api/tasks error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
