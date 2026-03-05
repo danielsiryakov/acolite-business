@@ -19,10 +19,7 @@ export async function initTaskQueue(): Promise<void> {
   if (initialized) return;
   await initDb();
 
-  // Drop old table
-  await client.execute(`DROP TABLE IF EXISTS nanoclaw_scheduled_tasks`);
-  await client.execute(`DROP INDEX IF EXISTS idx_nanoclaw_tasks_user_id`);
-  await client.execute(`DROP INDEX IF EXISTS idx_nanoclaw_tasks_next_run`);
+  // Old scheduled_tasks table removed — now using nanoclaw_tasks
 
   // Tasks
   await client.execute(`

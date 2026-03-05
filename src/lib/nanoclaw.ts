@@ -107,6 +107,16 @@ echo '{"type":"track_deployment","url":"https://project.vercel.app","project_nam
 \`\`\`
 Replace the URL and project name with the actual deployment values.
 
+### Saving User Settings
+To save settings (like the business website URL), write a settings file:
+\`\`\`bash
+echo '{"type":"save_settings","settings":{"websiteUrl":"https://example.com"}}' > /workspace/ipc/data/$(date +%s)-settings.json
+\`\`\`
+Supported settings keys:
+- **websiteUrl**: The user's business website URL
+
+When the user tells you their website URL or asks you to set it, save it using this method.
+
 ## Available Skills
 
 You have access to specialized skills in /workspace/skills/. When a task matches a skill's description, read the skill's SKILL.md to learn how to perform that task effectively.

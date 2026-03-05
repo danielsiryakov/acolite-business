@@ -444,6 +444,49 @@ export async function getMailboxByInboxId(
   };
 }
 
+// User Settings (stored in nanoclaw_sessions.settings JSON)
+
+export async function getUserSettings(userId: string): Promise<Record<string, string>> {
+  await initDb();
+  const result = await client.execute({
+    sql: `SELECT settings FROM nanoclaw_sessions WHERE user_id = ?`,
+    args: [userId],
+  });
+
+  if (result.rows.length === 0) return {};
+  try {
+    return JSON.parse(result.rows[0].settings as string || "{}");
+  } catch {
+    return {};
+  }
+}
+
+export async function updateUserSettings(
+  userId: string,
+  updates: Record<string, string | null>
+): Promise<Record<string, string>> {
+  await initDb();
+  const current = await getUserSettings(userId);
+  const merged = { ...current };
+  for (const [key, value] of Object.entries(updates)) {
+    if (value === null) {
+      delete merged[key];
+    } else {
+      merged[key] = value;
+    }
+  }
+  const settingsJson = JSON.stringify(merged);
+
+  await client.execute({
+    sql: `INSERT INTO nanoclaw_sessions (user_id, settings, last_activity)
+          VALUES (?, ?, datetime('now'))
+          ON CONFLICT(user_id) DO UPDATE SET settings = ?, last_activity = datetime('now')`,
+    args: [userId, settingsJson, settingsJson],
+  });
+
+  return merged;
+}
+
 export async function deleteMailbox(id: string, userId: string): Promise<boolean> {
   await initDb();
   const result = await client.execute({

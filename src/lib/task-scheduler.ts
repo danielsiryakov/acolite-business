@@ -10,6 +10,7 @@ import {
   deleteScheduledTask,
   createPayment,
   upsertDeployment,
+  updateUserSettings,
   type ScheduledTask,
 } from "./db";
 
@@ -255,6 +256,11 @@ async function processIpcData(): Promise<void> {
               vercelProjectId: data.vercel_project_id,
               framework: data.framework,
             });
+          } else if (data.type === "save_settings") {
+            logScheduler(`Saving settings for ${userId}: ${JSON.stringify(data.settings)}`);
+            if (data.settings && typeof data.settings === "object") {
+              await updateUserSettings(userId, data.settings);
+            }
           } else {
             logScheduler(`Unknown data type: ${data.type}`);
           }

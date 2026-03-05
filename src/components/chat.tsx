@@ -4,10 +4,18 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Trash2, Bot, User, Loader2, Circle } from "lucide-react";
-import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import {
+  Send,
+  Trash2,
+  Bot,
+  User,
+  Loader2,
+  Circle,
+  MessageCircle,
+  X,
+} from "lucide-react";
 
 interface Message {
   id: string;
@@ -16,7 +24,7 @@ interface Message {
   created_at: string;
 }
 
-export function Chat({ className }: { className?: string } = {}) {
+export function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -154,7 +162,7 @@ export function Chat({ className }: { className?: string } = {}) {
   };
 
   return (
-    <div className={cn("flex flex-col h-[600px] bg-white rounded-lg border shadow-sm", className)}>
+    <div className="flex flex-col h-[600px] bg-white rounded-lg border shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b">
         <div className="flex items-center gap-2">
@@ -265,7 +273,7 @@ function MessageBubble({
         {isUser ? (
           <p className="whitespace-pre-wrap text-sm">{message.content}</p>
         ) : (
-          <div className="prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2 prose-pre:bg-gray-800 prose-pre:text-gray-100 prose-code:text-pink-600 prose-code:before:content-none prose-code:after:content-none">
+          <div className="text-sm prose prose-sm prose-gray max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-headings:my-2 prose-a:text-blue-600">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {message.content}
             </ReactMarkdown>
@@ -276,5 +284,32 @@ function MessageBubble({
         )}
       </div>
     </div>
+  );
+}
+
+export function FloatingChat() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <>
+      {/* Chat Panel */}
+      {isOpen && (
+        <div className="fixed bottom-20 right-6 w-[420px] h-[600px] z-50 shadow-2xl rounded-xl overflow-hidden border border-gray-200">
+          <Chat />
+        </div>
+      )}
+
+      {/* FAB */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-gray-900 text-white flex items-center justify-center shadow-lg hover:bg-gray-800 transition-colors"
+      >
+        {isOpen ? (
+          <X className="h-6 w-6" />
+        ) : (
+          <MessageCircle className="h-6 w-6" />
+        )}
+      </button>
+    </>
   );
 }
