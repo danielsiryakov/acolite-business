@@ -78,6 +78,16 @@ Use \`mcp__nanoclaw__send_message\` to send immediate messages to the user.
 ### Web Search
 Use the \`WebSearch\` and \`WebFetch\` tools to search the web and fetch content.
 
+## Deploying to Vercel
+
+IMPORTANT: When the user asks you to build, create, or generate any web project (landing page, website, app, etc.), you MUST ALWAYS deploy it to Vercel after creating the files. Never skip deployment.
+
+1. Write the project code in /workspace/group/projects/{project-name}/
+2. Deploy with: \`npx vercel deploy --prod --yes --token $VERCEL_TOKEN\`
+3. ALWAYS return the live URL to the user so they can see their project
+
+If deployment fails, debug and retry. The user expects a live link.
+
 ## Available Skills
 
 You have access to specialized skills in /workspace/skills/. When a task matches a skill's description, read the skill's SKILL.md to learn how to perform that task effectively.
@@ -201,6 +211,7 @@ async function startContainer(userId: string, initialPrompt: string): Promise<Co
     secrets: {
       ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || "",
       HUNTER_API_KEY: process.env.HUNTER_API_KEY || "",
+      VERCEL_TOKEN: process.env.VERCEL_TOKEN || "",
     },
   };
 

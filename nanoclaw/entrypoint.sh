@@ -20,7 +20,13 @@ ANTHROPIC_API_KEY=$(echo "$INPUT" | node -e "
   process.stdout.write((input.secrets && input.secrets.ANTHROPIC_API_KEY) || '');
 ")
 
+VERCEL_TOKEN=$(echo "$INPUT" | node -e "
+  const input = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+  process.stdout.write((input.secrets && input.secrets.VERCEL_TOKEN) || '');
+")
+
 export ANTHROPIC_API_KEY
+export VERCEL_TOKEN
 
 # Ensure Claude Code config file exists (it expects ~/.claude.json)
 if [ ! -f "$HOME/.claude.json" ]; then
